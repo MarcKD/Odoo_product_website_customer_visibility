@@ -1,0 +1,140 @@
+# -*- coding: utf-8 -*-
+###################################################################################
+#
+#    Cybrosys Technologies Pvt. Ltd.
+#
+#    Copyright (C) 2021-TODAY Cybrosys Technologies (<https://www.cybrosys.com>).
+#    Author: Neeraj Krishnan V M(<https://www.cybrosys.com>)
+#
+#    This program is free software: you can modify
+#    it under the terms of the GNU Affero General Public License (AGPL) as
+#    published by the Free Software Foundation, either version 3 of the
+#    License, or (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+###################################################################################
+
+from odoo import fields, models, api
+from ast import literal_eval
+
+
+class ProductVisibility(models.Model):
+    _inherit = 'res.partner'
+
+    filter_mode = fields.Selection([
+        ('null', 'No Filter'),
+        ('product_only', 'Product Wise'),
+        ('categ_only', 'Category Wise'),
+        ('brand_only', 'Product Brand Wise'),
+        ('product_and_categ', 'Product & Category Wise'),
+        ('product_and_brand', 'Product Wise & Product Brand'),
+        ('categ_and_brand', 'Category Wise & Product Brand'),
+        ('product_categ_and_brand', 'Product, Category & Product Brand')
+    ], string='Filter Mode', default='null')
+    website_available_product_ids = fields.Many2many('product.template', string='Available Product',
+                                                     domain="[('is_published', '=', True)]",
+                                                     help='The website will hide the selected products from view. If no '
+                                                          'product is specified, all available products will be shown')
+    website_available_cat_ids = fields.Many2many('product.public.category', string='Available Product Categories',
+                                                 help='The website will hide the selected categories. If no category is '
+                                                      'specified, all available categories will be shown')
+    website_available_brand_ids = fields.Many2many('product.brand', string='Available Product Brands',
+                                                   help='The website will hide the selected product brands. If no brand '
+                                                        'is specified, all available brands will be shown')
+
+    @api.onchange("filter_mode")
+    def onchange_filter_mod(self):
+        if self.filter_mode == 'null':
+            self.website_available_cat_ids = [(5, 0, 0)]
+            self.website_available_product_ids = [(5, 0, 0)]
+            self.website_available_brand_ids = [(5, 0, 0)]
+
+class WebsiteGuestVisibility(models.TransientModel):
+    _inherit = 'res.config.settings'
+
+    product_visibility_guest_user = fields.Boolean(string="Product visibility Guest User")
+    filter_mode = fields.Selection([
+        ('product_only', 'Product Wise'),
+        ('categ_only', 'Category Wise'),
+        ('brand_only', 'Product Brand Wise'),
+        ('product_and_categ', 'Product & Category Wise'),
+        ('product_and_brand', 'Product Wise & Product Brand'),
+        ('categ_and_brand', 'Category Wise & Product Brand'),
+        ('product_categ_and_brand', 'Product, Category & Product Brand')
+    ], string='Filter Mode', default='product_only')
+
+    available_product_ids = fields.Many2many('product.template',
+                                             string='Available Product',
+                                             domain="[('is_published', '=', True)]",
+                                             help='The website will hide the selected products from visitors. If no '
+                                                  'product is specified, all available products will be shown')
+    available_cat_ids = fields.Many2many('product.public.category', string='Available Product Categories',
+                                         help='The website will hide the selected product categories. If no category is '
+                                              'specified, all available categories will be shown')
+    available_brand_ids = fields.Many2many('product.brand', string='Available Product Brands',
+                                           help='The website will hide the selected product brands. If no brand is '
+                                                'specified, all available brands will be shown')
+
+    @api.model
+    def set_values(self):
+        res = super(WebsiteGuestVisibility, self).set_values()
+        self.env['ir.config_parameter'].sudo().set_param('product_visibility_guest_user',
+                                                         self.product_visibility_guest_user)
+        self.env['ir.config_parameter'].sudo().set_param('filter_mode', self.filter_mode)
+        if not self.product_visibility_guest_user:
+            self.available_cat_ids = [(5, 0, 0)]
+            self.available_product_ids = [(5, 0, 0)]
+            self.available_brand_ids = [(5, 0, 0)]
+            self.env['ir.config_parameter'].sudo().set_param('filter_mode', 'product_only')
+        if self.filter_mode == 'product_only':
+            self.available_cat_ids = [(5, 0, 0)]
+            self.available_brand_ids = [(5, 0, 0)]
+        elif self.filter_mode == 'categ_only':
+            self.available_product_ids = [(5, 0, 0)]
+            self.available_brand_ids = [(5, 0, 0)]
+        elif self.filter_mode == 'brand_only':
+            self.available_cat_ids = [(5, 0, 0)]
+            self.available_product_ids = [(5, 0, 0)]
+        elif self.filter_mode == 'product_and_categ':
+            self.available_brand_ids = [(5, 0, 0)]
+        elif self.filter_mode == 'product_and_brand':
+            self.available_cat_ids = [(5, 0, 0)]
+        elif self.filter_mode == 'categ_and_brand':
+            self.available_product_ids = [(5, 0, 0)]
+
+        self.env['ir.config_parameter'].sudo().set_param('website_product_visibility.available_product_ids',
+                                                         self.available_product_ids.ids)
+        self.env['ir.config_parameter'].sudo().set_param('website_product_visibility.available_cat_ids',
+                                                         self.available_cat_ids.ids)
+        self.env['ir.config_parameter'].sudo().set_param('website_product_visibility.available_brand_ids',
+                                                         self.available_brand_ids.ids)
+        return res
+
+    @api.model
+    def get_values(self):
+        res = super(WebsiteGuestVisibility, self).get_values()
+        product_ids = literal_eval(self.env['ir.config_parameter'].sudo()
+                                   .get_param('website_product_visibility.available_product_ids', '[]'))
+        cat_ids = literal_eval(self.env['ir.config_parameter'].sudo()
+                               .get_param('website_product_visibility.available_cat_ids', '[]'))
+        brand_ids = literal_eval(self.env['ir.config_parameter'].sudo()
+                                 .get_param('website_product_visibility.available_brand_ids', '[]'))
+        mod = self.env['ir.config_parameter'].sudo().get_param('filter_mode')
+        if self.env['ir.config_parameter'].sudo().get_param('filter_mode'):
+
+            res.update(
+                product_visibility_guest_user=self.env['ir.config_parameter'].sudo().get_param(
+                    'product_visibility_guest_user'),
+                filter_mode=mod if mod else 'product_only',
+                available_product_ids=[(6, 0, product_ids)],
+                available_cat_ids=[(6, 0, cat_ids)],
+                available_brand_ids=[(6, 0, brand_ids)],
+            )
+        return res

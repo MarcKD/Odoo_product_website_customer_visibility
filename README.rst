@@ -1,0 +1,37 @@
+============================
+Website Product Visibility
+============================
+This module helps you to hide the filtered products and product
+categories for logged in and logged out users/visitors. Also, it enables
+the user to search products and product categories without showing the
+hidden products and categories.
+Tech
+====
+* [Python] - Models
+* [XML] - Odoo views
+
+Installation
+============
+- www.odoo.com/documentation/18.0/setup/install.html
+- Install our custom addon
+
+Developer: Shijin V @Cybrosys
+           V14: Muhammed Nafih @Cybrosys
+           V15: Neeraj @Cybrosys
+           V18: Adaptation for Odoo 18
+
+Bug Tracker
+===========
+Bugs are tracked on GitHub Issues. In case of trouble, please check there if your issue has already been reported.
+
+Credits
+=======
+* Cybrosys Techno Solutions <https://www.cybrosys.com>
+
+Maintainer
+----------
+
+This module is maintained by Cybrosys Technologies.
+
+For support and more information, please visit https://www.cybrosys.com.
+
